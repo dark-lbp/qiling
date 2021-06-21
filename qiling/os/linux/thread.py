@@ -437,12 +437,24 @@ class QlLinuxX8664Thread(QlLinuxThread):
         new_thread.tls = self.tls
         return new_thread
 
+
 class QlLinuxMIPS32Thread(QlLinuxThread):
     """docstring for QlLinuxMIPS32Thread"""
     def __init__(self, ql, start_address, exit_point, context = None, set_child_tid_addr = None, thread_id = None):
         super(QlLinuxMIPS32Thread, self).__init__(ql, start_address, exit_point, context, set_child_tid_addr, thread_id)
         self.tls = 0
 
+    def address_is_mips_delay_slot(self, address):
+        md = self.ql.create_disassembler()
+        perv_code_address = address - self.ql.pointersize
+        tmp = self.ql.mem.read(perv_code_address, self.ql.pointersize)
+        insn = md.disasm(tmp, perv_code_address)
+        for i in insn:
+            mnemonic = i.mnemonic.lower()
+            if mnemonic.startswith('b') or mnemonic.startswith('j'):
+                return True
+
+            return False
 
     def set_thread_tls(self, tls_addr):
         self.tls = tls_addr
@@ -452,6 +464,12 @@ class QlLinuxMIPS32Thread(QlLinuxThread):
         self.ql.log.debug(f"Set cp0 to {hex(self.ql.reg.cp0_userlocal)}")
 
     def save(self):
+        # Dirty fix for MIPS delay slot.
+        if self.ql.archtype == QL_ARCH.MIPS:
+            pc = self.ql.arch.get_pc()
+            if self.address_is_mips_delay_slot(pc):
+                pc = pc - self.ql.pointersize
+                self.ql.reg.arch_pc = pc
         self.save_context()
         self.tls = self.ql.reg.cp0_userlocal
         self.ql.log.debug(f"Saved context. cp0={hex(self.ql.reg.cp0_userlocal)}") 
