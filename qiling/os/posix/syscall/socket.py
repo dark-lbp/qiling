@@ -82,6 +82,8 @@ def ql_syscall_socket(ql, socket_domain, socket_type, socket_protocol, *args, **
             try:
                 emu_socket_type = socket_type_mapping(socket_type, ql.archtype)
                 socket_type = getattr(socket, emu_socket_type)
+                ql.log.debug("Convert emu_socket_type {} to host platform based socket_type {}".format(
+                    emu_socket_type, socket_type))
 
             except Exception:
                 ql.log.debug("Can't convert emu_socket_type to host platform based socket_type")
