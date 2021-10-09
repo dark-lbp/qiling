@@ -202,11 +202,59 @@ def ql_syscall_setsockopt(ql: Qiling, sockfd, level, optname, optval_addr, optle
         ql.os.fd[sockfd].setsockopt(level, optname, None, optlen)
     else:
         try:
+            try:
+                emu_level = level
+                emu_level_name = socket_level_mapping(emu_level, ql.archtype)
+                level = getattr(socket, emu_level_name)
+                ql.log.debug("Convert emu_level {}:{} to host platform based level {}:{}".format(
+                    emu_level_name, emu_level, emu_level_name, level))
+
+            except AttributeError:
+                ql.log.error("Can't convert emu_level {}:{} to host platform based emu_level".format(
+                    emu_level_name, emu_level))
+                raise
+
+            except Exception:
+                ql.log.error("Can't convert emu_level {} to host platform based level".format(emu_level))
+                raise
+
+            try:
+                emu_opt = optname
+
+                emu_level_name = socket_level_mapping(emu_level, ql.archtype)
+                # emu_opt_name is based on level
+                if emu_level_name == "IPPROTO_IP":
+                    emu_opt_name = socket_ip_option_mapping(emu_opt, ql.archtype)
+                else:
+                    emu_opt_name = socket_option_mapping(emu_opt, ql.archtype)
+
+                # Fix for mips
+                if ql.archtype == QL_ARCH.MIPS:
+                    if emu_opt_name.endswith("_NEW") or emu_opt_name.endswith("_OLD"):
+                        emu_opt_name = emu_opt_name[:-4]
+
+                optname = getattr(socket, emu_opt_name)
+                ql.log.debug("Convert emu_optname {}:{} to host platform based optname {}:{}".format(
+                    emu_opt_name, emu_opt, emu_opt_name, optname))
+
+            except AttributeError:
+                ql.log.error("Can't convert emu_optname {}:{} to host platform based emu_optname".format(
+                    emu_opt_name, emu_opt))
+                raise
+
+            except Exception:
+                ql.log.error("Can't convert emu_optname {} to host platform based optname".format(emu_opt))
+                raise
+
             optval = ql.mem.read(optval_addr, optlen)
             ql.os.fd[sockfd].setsockopt(level, optname, optval, None)
+
         except UcError:
             regreturn = -EFAULT
-    
+
+        except:
+            regreturn = -1
+
     return regreturn
 
 
