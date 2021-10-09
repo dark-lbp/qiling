@@ -17,6 +17,7 @@ from qiling.os.posix.const_mapping import socket_type_mapping, socket_level_mapp
 from qiling.os.posix.const import *
 from qiling.os.posix.filestruct import ql_socket
 
+
 class msghdr(ctypes.Structure):
     _fields_ = [
         ('msg_name'      , ctypes.c_uint64),
@@ -77,12 +78,31 @@ def ql_syscall_socket(ql: Qiling, socket_domain, socket_type, socket_protocol):
         if idx == -1:
             regreturn = -1
         else:
-            if ql.verbose >= QL_VERBOSE.DEBUG: # set REUSEADDR options under debug mode
+            # ql_socket.open should use host platform based socket_type.
+            try:
+                emu_socket_value = socket_type
+                emu_socket_type = socket_type_mapping(socket_type, ql.archtype)
+                socket_type = getattr(socket, emu_socket_type)
+                ql.log.debug("Convert emu_socket_type {}:{} to host platform based socket_type {}:{}".format(
+                    emu_socket_type, emu_socket_value, emu_socket_type, socket_type))
+
+            except AttributeError:
+                ql.log.error("Can't convert emu_socket_type {}:{} to host platform based socket_type".format(
+                    emu_socket_type, emu_socket_value))
+                raise
+
+            except Exception:
+                ql.log.error("Can't convert emu_socket_type {} to host platform based socket_type".format(
+                    emu_socket_value))
+                raise
+
+            if ql.verbose >= QL_VERBOSE.DEBUG:  # set REUSEADDR options under debug mode
                 ql.os.fd[idx] = ql_socket.open(socket_domain, socket_type, socket_protocol, (socket.SOL_SOCKET, socket.SO_REUSEADDR, 1))
             else:
                 ql.os.fd[idx] = ql_socket.open(socket_domain, socket_type, socket_protocol)
 
             regreturn = (idx)
+
     except Exception:
         ql.log.exception("")
         regreturn = -1
