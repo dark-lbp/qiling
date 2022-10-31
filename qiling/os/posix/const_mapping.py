@@ -191,7 +191,7 @@ def socket_ip_option_mapping(t, archtype, ostype):
             QL_ARCH.X8664: linux_socket_ip_options,
             QL_ARCH.ARM: linux_socket_ip_options,
             QL_ARCH.ARM64: linux_socket_ip_options,
-            QL_ARCH.MIPS: linux_socket_ip_options,
+            QL_ARCH.MIPS: linux_mips_socket_ip_options,
         }[archtype]
     return _constant_mapping(t, socket_option_map, single_mapping=True)
 
